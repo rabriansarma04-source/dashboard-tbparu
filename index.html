@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Surveilans TB Paru — Kota Bandung</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Spectral:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root{
+    --paper:#EEF1ED;
+    --paper-raised:#F6F8F5;
+    --ink:#1C2625;
+    --ink-soft:#566260;
+    --teal:#1F6F6B;
+    --teal-deep:#134946;
+    --red:#B23A33;
+    --amber:#C68A2E;
+    --green:#3E7A4F;
+    --line:#C7CFC9;
+    --line-soft:#DCE3DE;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Inter',sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1120px; margin:0 auto; padding:0 24px 80px;}
+
+  /* ---- Header: case-report letterhead ---- */
+  header.report-head{
+    border-bottom:2px solid var(--ink);
+    padding:36px 0 20px;
+    margin-bottom:28px;
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-end;
+    flex-wrap:wrap;
+    gap:16px;
+  }
+  .head-left .eyebrow{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:var(--teal-deep);
+    margin-bottom:8px;
+  }
+  .head-left h1{
+    font-family:'Spectral',serif;
+    font-weight:600;
+    font-size:34px;
+    line-height:1.1;
+  }
+  .head-left p{
+    font-size:14px;
+    color:var(--ink-soft);
+    margin-top:6px;
+    max-width:46ch;
+  }
+  .stamp{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    text-align:right;
+    color:var(--ink-soft);
+    border:1px solid var(--ink);
+    padding:10px 14px;
+    transform:rotate(-1.2deg);
+    background:var(--paper-raised);
+  }
+  .stamp strong{display:block; color:var(--ink); font-size:12px; letter-spacing:.04em;}
+
+  /* ---- Summary row ---- */
+  .summary{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:1px;
+    background:var(--line);
+    border:1px solid var(--line);
+    margin-bottom:36px;
+  }
+  .summary .cell{
+    background:var(--paper-raised);
+    padding:18px 20px;
+  }
+  .summary .label{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:10.5px;
+    letter-spacing:.1em;
+    text-transform:uppercase;
+    color:var(--ink-soft);
+    margin-bottom:10px;
+  }
+  .summary .value{
+    font-family:'Spectral',serif;
+    font-size:30px;
+    font-weight:600;
+  }
+  .summary .delta{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px;
+    margin-top:6px;
+  }
+  .delta.up{color:var(--red);}
+  .delta.down{color:var(--green);}
+
+  /* ---- Section labels ---- */
+  .section-label{
+    display:flex;
+    align-items:baseline;
+    gap:10px;
+    margin:48px 0 16px;
+  }
+  .section-label .num{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    color:var(--teal-deep);
+    border:1px solid var(--teal-deep);
+    padding:2px 6px;
+  }
+  .section-label h2{
+    font-family:'Spectral',serif;
+    font-size:19px;
+    font-weight:600;
+  }
+  .section-label .rule{flex:1; height:1px; background:var(--line); align-self:center;}
+
+  /* ---- Chart panel ---- */
+  .panel{
+    background:var(--paper-raised);
+    border:1px solid var(--line);
+    padding:24px;
+  }
+  .chart-box{height:420px;}
+
+  /* ---- Filter / sort bar ---- */
+  .controls{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+    margin-bottom:18px;
+    align-items:center;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px;
+  }
+  .controls button{
+    background:none;
+    border:1px solid var(--line);
+    color:var(--ink-soft);
+    padding:7px 13px;
+    cursor:pointer;
+    font-family:inherit;
+    font-size:12px;
+    transition:.15s;
+  }
+  .controls button:hover{border-color:var(--ink); color:var(--ink);}
+  .controls button.active{
+    background:var(--ink);
+    color:var(--paper);
+    border-color:var(--ink);
+  }
+  .controls .search{
+    margin-left:auto;
+    border:1px solid var(--line);
+    padding:7px 12px;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:inherit;
+    font-size:12px;
+    width:200px;
+  }
+  .controls .search:focus{outline:none; border-color:var(--teal);}
+
+  /* ---- District index cards ---- */
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(230px,1fr));
+    gap:14px;
+  }
+  .card{
+    position:relative;
+    background:var(--paper-raised);
+    border:1px solid var(--line);
+    padding:16px 16px 14px;
+    overflow:hidden;
+  }
+  .card::before{
+    content:"";
+    position:absolute;
+    top:0; right:0;
+    width:34px; height:34px;
+    background:var(--tab-color);
+    clip-path:polygon(100% 0, 0 0, 100% 100%);
+  }
+  .card .nama{
+    font-family:'Spectral',serif;
+    font-weight:600;
+    font-size:15.5px;
+    margin-bottom:10px;
+    padding-right:30px;
+  }
+  .card .row{
+    display:flex;
+    justify-content:space-between;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px;
+    color:var(--ink-soft);
+    padding:3px 0;
+    border-top:1px dashed var(--line-soft);
+  }
+  .card .row:first-of-type{border-top:none;}
+  .card .row b{color:var(--ink); font-weight:600;}
+  .card .risk-tag{
+    display:inline-block;
+    margin-top:10px;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:10px;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    padding:3px 8px;
+    color:#fff;
+    background:var(--tab-color);
+  }
+
+  footer{
+    margin-top:60px;
+    padding-top:18px;
+    border-top:1px solid var(--line);
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    color:var(--ink-soft);
+    display:flex;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:10px;
+  }
+
+  @media (max-width:640px){
+    .summary{grid-template-columns:repeat(2,1fr);}
+    .head-left h1{font-size:26px;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="report-head">
+    <div class="head-left">
+      <div class="eyebrow">Laporan Surveilans &middot; Tuberkulosis Paru</div>
+      <h1>Sebaran Kasus TB Paru<br>Kota Bandung</h1>
+      <p>Rekap kasus per kecamatan, dibandingkan antara tahun 2023 dan 2024, dengan klasifikasi tingkat risiko berdasarkan kuartil.</p>
+    </div>
+    <div class="stamp">
+      <strong>STATUS: DATA CONTOH</strong>
+      Ganti data.json dengan data riil<br>
+      Update terakhir: <span id="tgl-update">—</span>
+    </div>
+  </header>
+
+  <section class="summary" id="summary"></section>
+
+  <div class="section-label">
+    <span class="num">01</span>
+    <h2>Perbandingan Kasus per Kecamatan, 2023 vs 2024</h2>
+    <span class="rule"></span>
+  </div>
+  <div class="panel">
+    <div class="chart-box"><canvas id="chartCompare"></canvas></div>
+  </div>
+
+  <div class="section-label">
+    <span class="num">02</span>
+    <h2>Indeks Kecamatan</h2>
+    <span class="rule"></span>
+  </div>
+
+  <div class="controls">
+    <button data-sort="kasus_desc" class="active">Kasus terbanyak</button>
+    <button data-sort="kasus_asc">Kasus tersedikit</button>
+    <button data-sort="naik">Kenaikan tertinggi</button>
+    <button data-sort="alfabet">A–Z</button>
+    <input class="search" id="search" placeholder="Cari kecamatan...">
+  </div>
+
+  <div class="grid" id="grid"></div>
+
+  <footer>
+    <span>Sumber: Dinas Kesehatan Kota Bandung (data contoh untuk keperluan tampilan)</span>
+    <span>Dibuat untuk repositori dashboard-tb-bandung</span>
+  </footer>
+</div>
+
+<script>
+let RAW = null;
+
+function risk(value, all2024){
+  const sorted = [...all2024].sort((a,b)=>a-b);
+  const q = p => sorted[Math.floor(p*(sorted.length-1))];
+  const q1 = q(0.25), q3 = q(0.75);
+  if(value >= q3) return {label:'Tinggi', color:'var(--red)'};
+  if(value >= q1) return {label:'Sedang', color:'var(--amber)'};
+  return {label:'Rendah', color:'var(--green)'};
+}
+
+function renderSummary(data){
+  const total23 = data.reduce((s,d)=>s+d['2023'],0);
+  const total24 = data.reduce((s,d)=>s+d['2024'],0);
+  const delta = total24 - total23;
+  const top = [...data].sort((a,b)=>b['2024']-a['2024'])[0];
+  const naikTerbanyak = [...data].sort((a,b)=>(b['2024']-b['2023'])-(a['2024']-a['2023']))[0];
+
+  document.getElementById('summary').innerHTML = `
+    <div class="cell">
+      <div class="label">Total Kasus 2024</div>
+      <div class="value">${total24.toLocaleString('id-ID')}</div>
+      <div class="delta ${delta>=0?'up':'down'}">${delta>=0?'▲':'▼'} ${Math.abs(delta)} dari 2023</div>
+    </div>
+    <div class="cell">
+      <div class="label">Total Kasus 2023</div>
+      <div class="value">${total23.toLocaleString('id-ID')}</div>
+      <div class="delta">${data.length} kecamatan</div>
+    </div>
+    <div class="cell">
+      <div class="label">Kasus Tertinggi 2024</div>
+      <div class="value">${top['2024']}</div>
+      <div class="delta">${top.nama}</div>
+    </div>
+    <div class="cell">
+      <div class="label">Kenaikan Terbesar</div>
+      <div class="value">+${naikTerbanyak['2024']-naikTerbanyak['2023']}</div>
+      <div class="delta">${naikTerbanyak.nama}</div>
+    </div>
+  `;
+}
+
+function renderChart(data){
+  const sorted = [...data].sort((a,b)=>b['2024']-a['2024']);
+  new Chart(document.getElementById('chartCompare'), {
+    type:'bar',
+    data:{
+      labels: sorted.map(d=>d.nama),
+      datasets:[
+        {label:'2023', data: sorted.map(d=>d['2023']), backgroundColor:'#9FB3AE'},
+        {label:'2024', data: sorted.map(d=>d['2024']), backgroundColor:'#1F6F6B'}
+      ]
+    },
+    options:{
+      indexAxis:'y',
+      responsive:true,
+      maintainAspectRatio:false,
+      plugins:{legend:{position:'top', labels:{font:{family:"'IBM Plex Mono'", size:11}}}},
+      scales:{
+        x:{grid:{color:'#DCE3DE'}, ticks:{font:{family:"'IBM Plex Mono'", size:10}}},
+        y:{grid:{display:false}, ticks:{font:{family:"'Inter'", size:11}}}
+      }
+    }
+  });
+}
+
+function renderGrid(data, sortMode='kasus_desc', query=''){
+  const all2024 = RAW.kecamatan.map(d=>d['2024']);
+  let list = [...data];
+
+  if(query){
+    list = list.filter(d => d.nama.toLowerCase().includes(query.toLowerCase()));
+  }
+
+  switch(sortMode){
+    case 'kasus_desc': list.sort((a,b)=>b['2024']-a['2024']); break;
+    case 'kasus_asc':  list.sort((a,b)=>a['2024']-b['2024']); break;
+    case 'naik':       list.sort((a,b)=>(b['2024']-b['2023'])-(a['2024']-a['2023'])); break;
+    case 'alfabet':    list.sort((a,b)=>a.nama.localeCompare(b.nama)); break;
+  }
+
+  document.getElementById('grid').innerHTML = list.map(d=>{
+    const r = risk(d['2024'], all2024);
+    const delta = d['2024'] - d['2023'];
+    return `
+      <div class="card" style="--tab-color:${r.color}">
+        <div class="nama">${d.nama}</div>
+        <div class="row"><span>2023</span><b>${d['2023']}</b></div>
+        <div class="row"><span>2024</span><b>${d['2024']}</b></div>
+        <div class="row"><span>Selisih</span><b>${delta>=0?'+':''}${delta}</b></div>
+        <span class="risk-tag">${r.label}</span>
+      </div>
+    `;
+  }).join('');
+}
+
+fetch('data.json')
+  .then(res => res.json())
+  .then(json => {
+    RAW = json;
+    document.getElementById('tgl-update').textContent = json.terakhir_update;
+    renderSummary(json.kecamatan);
+    renderChart(json.kecamatan);
+    renderGrid(json.kecamatan);
+
+    document.querySelectorAll('.controls button').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        document.querySelectorAll('.controls button').forEach(b=>b.classList.remove('active'));
+        btn.classList.add('active');
+        renderGrid(RAW.kecamatan, btn.dataset.sort, document.getElementById('search').value);
+      });
+    });
+    document.getElementById('search').addEventListener('input', (e)=>{
+      const active = document.querySelector('.controls button.active').dataset.sort;
+      renderGrid(RAW.kecamatan, active, e.target.value);
+    });
+  })
+  .catch(err=>{
+    document.getElementById('grid').innerHTML = `<p style="font-family:'IBM Plex Mono',monospace;color:var(--red);">Gagal memuat data.json — pastikan file ini berada di folder yang sama dengan index.html. (${err})</p>`;
+  });
+</script>
+</body>
+</html>
